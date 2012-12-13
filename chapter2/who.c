@@ -1,39 +1,54 @@
 #include <stdio.h>
+#include <unistd.h>
 #include <utmpx.h>
 #include <fcntl.h>
-#include <unistd.h>
+#include <time.h>
+
 #include <stdlib.h>
 
 #define SHOWHOST
 
+void showtime(long);
+void show_info(struct utmpx *);
+
 int main()
 {
-    struct utmpx current_record;
+    struct utmpx utbuf;
     int utmpfd;
-    int reclen = sizeof(current_record);
 
     if ((utmpfd = open(UTMPX_FILE, O_RDONLY)) == -1) {
         perror(UTMPX_FILE);
         exit(1);
     }
 
-    while (read(utmpfd, &current_record, reclen) == reclen) {
-        show_info(&current_record);
+    while (read(utmpfd, &utbuf, sizeof(utbuf)) == sizeof(utbuf)) {
+        show_info(getutxent());
+        //show_info(&utbuf);
     }
 
     close(utmpfd);
     return 0;
 }
 
-show_info(struct utmpx *utmpfd) {
+void show_info(struct utmpx *utmpfd) {
+   if (utmpfd->ut_type != USER_PROCESS)
+      return;
     printf("%-8.8s", utmpfd->ut_user);
     printf(" ");
     printf("%-8.8s", utmpfd->ut_line);
     printf(" ");
-    printf("%10ld", utmpfd->ut_tv.tv_sec);
+    showtime(utmpfd->ut_tv.tv_sec);
     printf(" ");
 #ifdef SHOWHOST
-    printf("(%s)", utmpfd->ut_host);
+    if (utmpfd->ut_host[0] != '\0')
+        printf(" (%s)", utmpfd->ut_host);
 #endif
     printf("\n");
 }
+
+void showtime(long timeval) {
+  char *cp;
+  cp = ctime(&timeval);
+  printf("%12.12s", cp + 4);
+}
+
